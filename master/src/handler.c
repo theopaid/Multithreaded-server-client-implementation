@@ -93,11 +93,16 @@ void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int buffe
 
 void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, int fdRead) {
 
+    StatsCountryNode *countriesListHead = NULL, *currCountryNode = NULL;
+    StatsDateNode *currDateNode = NULL;
     //read directories
     char *inputPath = NULL, *fullPath = NULL;
     dirListNode *headList, *current;
     listNode *recordsListHead = NULL, *tmp = NULL;
     for(int i=0; i<numOfDirs; i++) {
+
+        currCountryNode = appendToCountriesList(&countriesListHead, dirNames[i]); // append each country
+
         inputPath = (char *)malloc(sizeof(char) * (strlen(input_dir) + strlen(dirNames[i]) + 2));
         sprintf(inputPath, "%s/%s", input_dir, dirNames[i]);
 
@@ -108,11 +113,10 @@ void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, in
             fullPath = (char *)malloc(sizeof(char) * (strlen(inputPath) + 16)); // 15 is the static size of a Date
             sprintf(fullPath, "%s/%s", inputPath, current->dirName);
             printf("Reading data of %s\n", fullPath);
-            //make all the structures
-            //when done, get the data and send them sendStatistics()
-            recordsListHead = storeData(fullPath, &recordsListHead, current->dirName, dirNames[i]);
-            
 
+            currDateNode = appendToSortedDatesList(&(currCountryNode->dateListPtr), current->dirName); // append each date of the country
+
+            recordsListHead = storeData(fullPath, &recordsListHead, current->dirName, dirNames[i], &currDateNode);
 
             free(fullPath);
             fullPath = NULL;
@@ -123,6 +127,7 @@ void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, in
         freeDirList(headList);
         inputPath = NULL;
     }
+    printStats(countriesListHead);
     //printList(recordsListHead);
 
     // let's create the hash tables

@@ -1,4 +1,4 @@
-objects = src/main.o src/helpfulFunctions.o src/menuFunctions.o src/handler.o src/recordList.o src/hashTable.o src/avlTree.o src/freeFunct.o
+objects = src/main.o src/helpfulFunctions.o src/menuFunctions.o src/handler.o src/recordList.o src/hashTable.o src/avlTree.o src/freeFunct.o src/StatsLists.o
 
 diseaseAggregator : $(objects)
 		cc -o diseaseAggregator $(objects)
@@ -15,6 +15,7 @@ src/recordList.o : include/Interface.h
 src/hashTable.o : include/Interface.h
 src/avlTree.o : include/Interface.h
 src/freeFunct.o : include/Interface.h
+src/StatsLists.o : include/Interface.h
 
 .PHONY: clean
 clean :

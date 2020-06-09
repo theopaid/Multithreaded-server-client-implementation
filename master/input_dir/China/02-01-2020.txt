@@ -1,0 +1,8 @@
+1 EXIT ulwCoiHIMc vSJmHqZHkp H1N1 84
+2 ENTRY jggodSBzjU UEgfbffxjd FLU 45
+2 EXIT jggodSBzjU UEgfbffxjd FLU 45
+3 ENTRY JCUijDapjK sSYmgrTIUK H1N1 100
+1 ENTRY RvzsYKluQc mRyhiedrZo H1N1 33
+2 ENTRY ZGxMjshrnK aRwcFoHjUp FLU 9
+3 ENTRY PeKtvfrTJj cGDZXojYqh H1N1 55
+4 ENTRY WtsuzpRKcU zfOdnAQlyk COVID-2019 45

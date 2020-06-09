@@ -103,7 +103,8 @@ listNode *patientsEntryRecord(listNode *head, char *recordID) {
     return NULL;
 }
 
-listNode *storeData(char *patientRecordsFile,listNode **head, char *date, char *country) {
+listNode *storeData(char *patientRecordsFile, listNode **head, char *date, char *country, StatsDateNode **currDateNode)
+{
 
     listNode *activeCase = NULL;
     char tmpDateInfo[11];
@@ -188,6 +189,8 @@ listNode *storeData(char *patientRecordsFile,listNode **head, char *date, char *
             case 5:
                 fscanf(fp, "%s", tmpEntryInfo);
                 tmpRecordPtr->age = atoi(tmpEntryInfo);
+
+                addStatsToDisease(&((*currDateNode)->diseaseListPtr), tmpRecordPtr->diseaseID, tmpRecordPtr->age);
 
                 sortDateInsert(head, &tmpRecordPtr);
 

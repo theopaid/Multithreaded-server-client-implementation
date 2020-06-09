@@ -72,6 +72,30 @@ typedef struct hashTable
     int bucketSize;
 } hashTable;
 
+typedef struct StatsDiseaseNode
+{
+    char *name;
+    int range0to20;
+    int range21to40;
+    int range41to60;
+    int range61to120;
+    struct StatsDiseaseNode *next;
+} StatsDiseaseNode;
+
+typedef struct StatsDateNode
+{
+    Date entryDate;
+    StatsDiseaseNode *diseaseListPtr;
+    struct StatsDateNode *next;
+} StatsDateNode;
+
+typedef struct StatsCountryNode 
+{
+    char *name;
+    StatsDateNode *dateListPtr;
+    struct StatsCountryNode *next;
+} StatsCountryNode;
+
 bool validArgs(int argc, const char *argv[]);
 
 void getArgs(int *numOfWorkers, int *bufferSize, char **input_dir, const char *argv[]);
@@ -84,7 +108,7 @@ dirListNode *dirListingToList(char *inputDir);
 
 int listNodeCounter(dirListNode *head);
 
-listNode *storeData(char *patientRecordsFile, listNode **head, char *date, char *country);
+listNode *storeData(char *patientRecordsFile, listNode **head, char *date, char *country, StatsDateNode **currDateNode);
 
 listNode *patientsEntryRecord(listNode *head, char *recordID);
 
@@ -141,3 +165,11 @@ void freeBuckets(bucket *firstBucket);
 void freeHTable(hashTable *hashTable);
 
 void sendStatistics(listNode *head, int fdWrite, int numOfDirs, char **dirNames);
+
+StatsCountryNode *appendToCountriesList(StatsCountryNode **countriesListHead, char *countryName);
+
+StatsDateNode *appendToSortedDatesList(StatsDateNode **datesListHead, char *dateInfo);
+
+void addStatsToDisease(StatsDiseaseNode **diseaseListHead, char *diseaseID, int age);
+
+void printStats(StatsCountryNode *countriesListHead);
