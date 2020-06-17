@@ -1,17 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <dirent.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <errno.h>
-#include <fcntl.h>
-
 #define LINE_MAX 1000
 
 typedef struct dirListNode
@@ -110,9 +96,9 @@ typedef struct StatsCountryNode
     struct StatsCountryNode *next;
 } StatsCountryNode;
 
-bool validArgs(int argc, const char *argv[]);
+bool validArgs(int argc, char *argv[]);
 
-void getArgs(int *numWorkers, int *bufferSize, char **input_dir, char **serverIP, int *serverPort, const char *argv[]);
+void getArgs(int *numThreads, int *bufferSize, int *queryPortNum, int *statisticsPortNum, char *argv[]);
 
 void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int bufferSize, char *input_dir, char *serverIP, int serverPort);
 
@@ -192,10 +178,4 @@ void connectToServer(hashTable *diseaseHTable, hashTable *countryHTable, StatsCo
 
 void perrorexit(char *message);
 
-void sendStatsAndPort(struct sockaddr_in *servaddr, int *sockfd, u_int32_t *convertedPort, StatsCountryNode **countriesListHead);
-
-void sendStatsToServer(StatsCountryNode *countriesListHead, int *sockfd);
-
-void cleanBuffAndSend(int *sockfd, uint8_t *sendline);
-
-void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries);
+char *bin2hex(const unsigned char *input, size_t len);

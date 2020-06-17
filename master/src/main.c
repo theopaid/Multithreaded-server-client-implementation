@@ -19,14 +19,14 @@ int main(int argc, const char *argv[])
         return -1;
     }
 
-    int numOfWorkers, bufferSize;
-    char *input_dir;
-    getArgs(&numOfWorkers, &bufferSize, &input_dir, argv);
+    int numOfWorkers, bufferSize, serverPort;
+    char *input_dir, *serverIP;
+    getArgs(&numOfWorkers, &bufferSize, &input_dir, &serverIP, &serverPort, argv);
 
     workersInfo myWorkersInfo;
     allocateWorkersInfo(&myWorkersInfo, numOfWorkers);
 
-    distributeToWorkers(&myWorkersInfo, numOfWorkers, bufferSize, input_dir);
+    distributeToWorkers(&myWorkersInfo, numOfWorkers, bufferSize, input_dir, serverIP, serverPort);
 
     dirListNode *headDirList = dirListingToList(input_dir);
     int numOfDirs = listNodeCounter(headDirList);
@@ -59,7 +59,7 @@ int main(int argc, const char *argv[])
             while(read(myWorkersInfo.workerFDs[i - 1][1], &infoRead, sizeof(int)) == -1);
     }
 
-    renderMenu(&myWorkersInfo, numOfWorkers);
+    //renderMenu(&myWorkersInfo, numOfWorkers);
 
     return 0;
 }

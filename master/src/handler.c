@@ -7,10 +7,17 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <dirent.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
 
 #include "../include/Interface.h"
 
-void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int bufferSize, char *input_dir)
+#define MAXLINE 4096
+#define SA struct sockaddr
+
+void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int bufferSize, char *input_dir, char *serverIP, int serverPort)
 {
 
     pid_t childpid;
@@ -56,18 +63,25 @@ void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int buffe
             int numOfDirs = 0, bytesToRead, n;
             char *dirName;
 
-            while(read(fdRead, &numOfDirs, sizeof(int)) == -1) {}
+            while (read(fdRead, &numOfDirs, sizeof(int)) == -1)
+            {
+            }
             n = numOfDirs;
             char *dirNames[numOfDirs];
-            while(n--) {
+            while (n--)
+            {
                 bytesToRead = 0;
-                while(read(fdRead, &bytesToRead, sizeof(int)) == -1) {}
-                dirName = (char *) malloc(sizeof(char) * bytesToRead);
-                while(read(fdRead, dirName, bytesToRead) == -1) {}
-                dirNames[numOfDirs-n-1] = dirName;
+                while (read(fdRead, &bytesToRead, sizeof(int)) == -1)
+                {
+                }
+                dirName = (char *)malloc(sizeof(char) * bytesToRead);
+                while (read(fdRead, dirName, bytesToRead) == -1)
+                {
+                }
+                dirNames[numOfDirs - n - 1] = dirName;
             }
 
-            workerExec(input_dir, numOfDirs, dirNames, fdWrite, fdRead);
+            workerExec(input_dir, numOfDirs, dirNames, fdWrite, fdRead, serverIP, serverPort);
             //handleWorkerExit();
             exit(-1);
         }
@@ -76,12 +90,14 @@ void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int buffe
             myWorkersInfo->workerPIDs[i - 1] = childpid;
 
             myWorkersInfo->workerFDs[i - 1][0] = open(fifoToWorker, O_RDWR | O_NONBLOCK); //write
-            if (myWorkersInfo->workerFDs[i - 1][0] == -1) {
+            if (myWorkersInfo->workerFDs[i - 1][0] == -1)
+            {
                 perror("Error on opening");
                 exit(-1);
-             }
+            }
             myWorkersInfo->workerFDs[i - 1][1] = open(fifoFromWorker, O_RDWR | O_NONBLOCK); //read
-            if (myWorkersInfo->workerFDs[i - 1][1] == -1) {
+            if (myWorkersInfo->workerFDs[i - 1][1] == -1)
+            {
                 perror("Error on opening");
                 exit(-1);
             }
@@ -91,7 +107,8 @@ void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int buffe
     }
 }
 
-void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, int fdRead) {
+void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, int fdRead, char *serverIP, int serverPort)
+{
 
     StatsCountryNode *countriesListHead = NULL, *currCountryNode = NULL;
     StatsDateNode *currDateNode = NULL;
@@ -99,7 +116,8 @@ void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, in
     char *inputPath = NULL, *fullPath = NULL;
     dirListNode *headList, *current;
     listNode *recordsListHead = NULL, *tmp = NULL;
-    for(int i=0; i<numOfDirs; i++) {
+    for (int i = 0; i < numOfDirs; i++)
+    {
 
         currCountryNode = appendToCountriesList(&countriesListHead, dirNames[i]); // append each country
 
@@ -109,7 +127,8 @@ void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, in
         headList = dirListingToList(inputPath);
         current = headList;
 
-        while(current != NULL) {
+        while (current != NULL)
+        {
             fullPath = (char *)malloc(sizeof(char) * (strlen(inputPath) + 16)); // 15 is the static size of a Date
             sprintf(fullPath, "%s/%s", inputPath, current->dirName);
             printf("Reading data of %s\n", fullPath);
@@ -127,7 +146,7 @@ void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, in
         freeDirList(headList);
         inputPath = NULL;
     }
-    printStats(countriesListHead);
+    //printStats(countriesListHead);
     //printList(recordsListHead);
 
     // let's create the hash tables
@@ -154,17 +173,194 @@ void workerExec(char *input_dir, int numOfDirs, char **dirNames, int fdWrite, in
         currentRecordsList = currentRecordsList->next;
     }
 
+    connectToServer(&diseaseHTable, &countryHTable, &countriesListHead, serverIP, serverPort);
+
     freeList(recordsListHead);
     freeHTable(&diseaseHTable);
     freeHTable(&countryHTable);
 
-    int done = 1;
-    write(fdWrite, &done, sizeof(int));
+    // int done = 1;
+    // write(fdWrite, &done, sizeof(int));
 }
 
-void sendStatistics(listNode *head, int fdWrite, int numOfDirs, char **dirNames) {
+void connectToServer(hashTable *diseaseHTable, hashTable *countryHTable, StatsCountryNode **countriesListHead, char *serverIP, int serverPort)
+{
+    int sockfd, n;
+    int sendbytes;
+    int listenQueriesfd;
+    struct sockaddr_in servaddr, servaddrQueries, servaddrTmp;
+    uint8_t sendline[MAXLINE + 1];
+    uint8_t recvline[MAXLINE + 1];
 
-    int casesForAge[4];
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        perrorexit("socket creation");
+    if ((listenQueriesfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        perrorexit("socket creation");
 
+    bzero(&servaddr, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(serverPort);
 
+    // where the worker is going to listen for Queries
+    bzero(&servaddrQueries, sizeof(servaddrQueries));
+    servaddrQueries.sin_family = AF_INET;
+    servaddrQueries.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddrQueries.sin_port = htons(0);
+
+    // let's bind the listed socket so a random port is generated
+    if ((bind(listenQueriesfd, (SA *)&servaddrQueries, sizeof(servaddrQueries))) < 0)
+        perrorexit("bind error");
+    socklen_t len = sizeof(servaddrTmp);
+    if (getsockname(listenQueriesfd, (SA *)&servaddrTmp, &len) == -1)
+        perrorexit("getsockname");
+    printf("worker port: %d\n", ntohs(servaddrTmp.sin_port));
+
+    int workersPort = ntohs(servaddrTmp.sin_port);
+    u_int32_t convertedPort = htonl(workersPort);
+
+    // let's connect to the server and send stats and port number
+    if (inet_pton(AF_INET, serverIP, &servaddr.sin_addr) <= 0)
+        perrorexit("inet_pton");
+    sendStatsAndPort(&servaddr, &sockfd, &convertedPort, countriesListHead);
+
+    // if (connect(sockfd, (SA *)&servaddr, sizeof(servaddr)) < 0)
+    //     perrorexit("socket connection failed");
+
+    // sprintf(sendline, "kalispera apo ton client\n\0");
+    // sendbytes = strlen(sendline);
+    // puts("Sending msg to server");
+    // if (write(sockfd, sendline, sendbytes) != sendbytes)
+    //     perrorexit("write error");
+
+    // zero out the receiving buffer 1st to make sure it ends up null terminated
+    memset(recvline, 0, MAXLINE);
+    //read server's response
+    printf("Server msg: ");
+    while ((n = read(sockfd, recvline, MAXLINE - 1)) > 0)
+    {
+        printf("%s", recvline);
+
+        if (recvline[n] == '\0')
+            break;
+        
+        memset(recvline, 0, MAXLINE);
+    }
+    // can't read negative bytes
+    if (n < 0)
+        perrorexit("read error");
+
+    listenForQueries(&listenQueriesfd, &servaddrQueries);
+
+        exit(0);
+}
+
+void perrorexit(char *message)
+{
+    perror(message);
+    exit(EXIT_FAILURE);
+}
+
+void sendStatsAndPort(struct sockaddr_in *servaddr, int *sockfd, u_int32_t *convertedPort, StatsCountryNode **countriesListHead)
+{
+    uint8_t sendline[MAXLINE + 1];
+    memset(sendline, 0, MAXLINE);
+    uint8_t recvline[MAXLINE + 1];
+    memset(recvline, 0, MAXLINE);
+    int n, sendbytes;
+
+    if(connect(*sockfd, (SA *)servaddr, sizeof(*servaddr)) < 0)
+        perrorexit("socket connection failed");
+
+    puts("Sending msg to server");
+    if (write(*sockfd, convertedPort, sizeof(*convertedPort)) != sizeof(*convertedPort))
+        perrorexit("write error");
+    
+    sendStatsToServer(*countriesListHead, sockfd);
+}
+
+void sendStatsToServer(StatsCountryNode *countriesListHead, int *sockfd)
+{
+    uint8_t sendline[MAXLINE + 1];
+    int sendbytes;
+    memset(sendline, 0, MAXLINE);
+
+    StatsCountryNode *currCountryNode = countriesListHead;
+
+    while (currCountryNode != NULL)
+    {
+        StatsDateNode *currDateNode = currCountryNode->dateListPtr;
+
+        while (currDateNode != NULL)
+        {
+            StatsDiseaseNode *currDiseaseNode = currDateNode->diseaseListPtr;
+
+            sprintf(sendline, "%d-%d-%d\n", currDateNode->entryDate.day, currDateNode->entryDate.month, currDateNode->entryDate.year);
+            cleanBuffAndSend(sockfd, sendline);
+
+            sprintf(sendline, "%s\n", currCountryNode->name);
+            cleanBuffAndSend(sockfd, sendline);
+
+            while (currDiseaseNode != NULL)
+            {
+                sprintf(sendline, "%s\n", currDiseaseNode->name);
+                cleanBuffAndSend(sockfd, sendline);
+
+                sprintf(sendline, "Age range 0-20 years: %d cases\n", currDiseaseNode->range0to20);
+                cleanBuffAndSend(sockfd, sendline);
+                sprintf(sendline, "Age range 21-40 years: %d cases\n", currDiseaseNode->range21to40);
+                cleanBuffAndSend(sockfd, sendline);
+                sprintf(sendline, "Age range 41-60 years: %d cases\n", currDiseaseNode->range41to60);
+                cleanBuffAndSend(sockfd, sendline);
+                sprintf(sendline, "Age range 60+ years: %d cases\n", currDiseaseNode->range61to120);
+                cleanBuffAndSend(sockfd, sendline);
+
+                currDiseaseNode = currDiseaseNode->next;
+            }
+
+            currDateNode = currDateNode->next;
+        }
+        sprintf(sendline, "==================================\n");
+        cleanBuffAndSend(sockfd, sendline);
+
+        currCountryNode = currCountryNode->next;
+    }
+    sprintf(sendline, "\0");
+    if (write(*sockfd, sendline, 1) != 1)
+        perrorexit("write error");
+}
+
+void cleanBuffAndSend(int *sockfd, uint8_t *sendline) {
+    int sendbytes = strlen(sendline);
+    if (write(*sockfd, sendline, sendbytes) != sendbytes)
+        perrorexit("write error");
+    memset(sendline, 0, MAXLINE);
+}
+
+void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries) {
+
+    int connfd, n;
+    uint8_t recvline[MAXLINE + 1];
+
+    if ((listen(*listenQueriesfd, 10)) < 0)
+        perrorexit("listen error");
+
+    while(1) { // wait until an incoming connection arrives
+        puts("I'm waiting foe incoming Queries...");
+        connfd = accept(*listenQueriesfd, (SA *)NULL, NULL);
+        // zero out the receiving buffer 1st to make sure it ends up null terminated
+        memset(recvline, 0, MAXLINE);
+
+        //read server's query
+        while ((n = read(connfd, recvline, MAXLINE - 1)) > 0)
+        {
+            printf("%s", recvline);
+            if (recvline[n] == '\0') // protocol: sign that message is over
+                break;
+
+            memset(recvline, 0, MAXLINE);
+        }
+        // can't read negative bytes
+        if (n < 0)
+            perrorexit("read error");
+    }
 }

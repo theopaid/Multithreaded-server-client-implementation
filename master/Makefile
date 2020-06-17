@@ -1,9 +1,9 @@
 objects = src/main.o src/helpfulFunctions.o src/menuFunctions.o src/handler.o src/recordList.o src/hashTable.o src/avlTree.o src/freeFunct.o src/StatsLists.o
 
-diseaseAggregator : $(objects)
-		cc -o diseaseAggregator $(objects)
+master : $(objects)
+		cc -o master $(objects)
 		@echo "========================================================================"
-		@echo "|Try running: ./diseaseAggregator  -w 3 -b 250 -i input_dir            |"
+		@echo "|Try running: ./master -w 3 -b 4096 -s 127.0.0.1 -p 166 -i input_dir           |"
 		@echo "|														              |"
 		@echo "========================================================================"
 
@@ -20,4 +20,4 @@ src/StatsLists.o : include/Interface.h
 .PHONY: clean
 clean :
 		@echo "Cleaning ..."
-		rm diseaseAggregator $(objects)
+		rm master $(objects)

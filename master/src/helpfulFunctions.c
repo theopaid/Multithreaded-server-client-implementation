@@ -11,7 +11,7 @@
 bool validArgs(int argc, const char *argv[])
 {
 
-    if (argc == 7)
+    if (argc == 11)
     {
         return true;
     }
@@ -21,10 +21,10 @@ bool validArgs(int argc, const char *argv[])
     }
 }
 
-void getArgs(int *numWorkers, int *bufferSize, char **input_dir, const char *argv[])
+void getArgs(int *numWorkers, int *bufferSize, char **input_dir, char **serverIP, int *serverPort, const char *argv[])
 {
 
-    for (int i = 1; i < 7; i = i + 2)
+    for (int i = 1; i < 11; i = i + 2)
     {
         if (!strcmp(argv[i], "-i"))
         {
@@ -37,6 +37,12 @@ void getArgs(int *numWorkers, int *bufferSize, char **input_dir, const char *arg
         else if (!strcmp(argv[i], "-w"))
         {
             *numWorkers = atoi(argv[i + 1]);
+        }
+        else if (!strcmp(argv[i], "-s")) {
+            *serverIP = argv[i+1];
+        }
+        else if (!strcmp(argv[i], "-p")) {
+            *serverPort = atoi(argv[i+1]);
         }
     }
 }
