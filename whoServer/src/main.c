@@ -11,11 +11,17 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "../include/Interface.h"
 
 #define MAXLINE 4096
-#define SA struct sockaddr
+
+typedef struct sockaddr_in SA_IN;
+typedef struct sockaddr SA;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t conditionVar = PTHREAD_COND_INITIALIZER;
 
 int main(int argc, char *argv[])
 {
@@ -31,10 +37,16 @@ int main(int argc, char *argv[])
     int numThreads, bufferSize, queryPortNum, statisticsPortNum;
     getArgs(&numThreads, &bufferSize, &queryPortNum, &statisticsPortNum, argv);
     printf("%d %d %d %d\n", numThreads, bufferSize, queryPortNum, statisticsPortNum);
-    int listenfd, connfd, n;
-    struct sockaddr_in servaddr;
+    int listenfd, connfd;
+    SA_IN servaddr;
     uint8_t buff[MAXLINE + 1];
     uint8_t recvline[MAXLINE + 1];
+
+    // create all the threads that we need for future connections 
+    pthread_t thread_pool[numThreads];
+    for(int i = 0; i< numThreads; i++) {
+        pthread_create(&thread_pool[i], NULL, socketDistribution, NULL);
+    }
 
     // allocate new socket
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -48,48 +60,117 @@ int main(int argc, char *argv[])
     if ((bind(listenfd, (SA *)&servaddr, sizeof(servaddr))) < 0)
         perrorexit("bind error");
 
-    if ((listen(listenfd, 10)) < 0)
+    if ((listen(listenfd, 50)) < 0)
         perrorexit("listen error");
 
     while (1)
     { // wait until an incoming connection arrives
-        struct sockaddr_in addr;
-        socklen_t addr_len;
         printf("Waiting for a connection on port: %d\n", statisticsPortNum);
 
-        connfd = accept(listenfd, (SA *)NULL, NULL);
-
-        // zero out the receiving buffer 1st to make sure it ends up null terminated
-        memset(recvline, 0, MAXLINE);
-        
-        // read worker's port
-        int tmp, workerPort;
-        if((n = read(connfd, &tmp, sizeof(tmp))) > 0)
-            workerPort = ntohl(tmp);
-        else
-            perrorexit("read error");
-        printf("Worker's Port: %d\n", workerPort);
-
-        // read worker's stats
-        printf("===== Worker's statistics below ======\n");
-        while ((n = read(connfd, recvline, MAXLINE - 1)) > 0)
-        {
-            printf("%s", recvline);
-            if (recvline[n-1] == '\0') // protocol: sign that message is over
-                break;
-            
-            memset(recvline, 0, MAXLINE);
-            
+        if(getNodesCount() >= bufferSize) {
+            puts("Refusing connection: Buffer is full :(");
+            continue;
         }
-        // can't read negative bytes
-        if (n < 0)
-            perrorexit("read error");
 
-        // send message to client
-        snprintf((char *)buff, sizeof(buff), "Read stats from worker with port: %d\n\0", workerPort);
-        write(connfd, (char *)buff, strlen((char *)buff));
-        close(connfd);
+        if((connfd = accept(listenfd, (SA *)NULL, NULL)) < 0)
+            perrorexit("accept failed");
+        puts("Connected!");
+
+        int *ptrClient = malloc(sizeof(int));
+        *ptrClient = connfd;
+        pthread_mutex_lock(&mutex);
+        addToBuffer(ptrClient);
+        pthread_cond_signal(&conditionVar);
+        pthread_mutex_unlock(&mutex);
+
+        // // zero out the receiving buffer 1st to make sure it ends up null terminated
+        // memset(recvline, 0, MAXLINE);
+        
+        // // read worker's port
+        // int tmp, workerPort;
+        // if((n = read(connfd, &tmp, sizeof(tmp))) > 0)
+        //     workerPort = ntohl(tmp);
+        // else
+        //     perrorexit("read error");
+        // printf("Worker's Port: %d\n", workerPort);
+
+        // // read worker's stats
+        // printf("===== Worker's statistics below ======\n");
+        // while ((n = read(connfd, recvline, MAXLINE - 1)) > 0)
+        // {
+        //     printf("%s", recvline);
+        //     if (recvline[n-1] == '\0') // protocol: sign that message is over
+        //         break;
+            
+        //     memset(recvline, 0, MAXLINE);
+            
+        // }
+        // // can't read negative bytes
+        // if (n < 0)
+        //     perrorexit("read error");
+
+        // // send message to client
+        // snprintf((char *)buff, sizeof(buff), "Read stats from worker with port: %d\n\0", workerPort);
+        // write(connfd, (char *)buff, strlen((char *)buff));
+        // close(connfd);
     }
 
     return 0;
+}
+
+void * socketDistribution(void *arg) {
+    while (1)
+    {
+        int *ptrClient;
+        pthread_mutex_lock(&mutex);
+        if((ptrClient = removeFromBuffer()) == NULL) { // we should only wait if the buffer is empty
+            pthread_cond_wait(&conditionVar, &mutex);
+
+            ptrClient = removeFromBuffer();
+        }
+        pthread_mutex_unlock(&mutex);
+        if (ptrClient != NULL) {
+            handleConnection(ptrClient);
+        }
+    }
+    
+}
+
+void handleConnection(int *ptrClient) {
+    int clientSocket = *ptrClient, n;
+    free(ptrClient); // we don't need it anymore
+
+    uint8_t buff[MAXLINE + 1];
+    uint8_t recvline[MAXLINE + 1];
+
+    // zero out the receiving buffer 1st to make sure it ends up null terminated
+    memset(recvline, 0, MAXLINE);
+
+    // read worker's port
+    int tmp, workerPort;
+    if((n = read(clientSocket, &tmp, sizeof(tmp))) > 0)
+        workerPort = ntohl(tmp);
+    else
+        perrorexit("read error");
+    printf("Worker's Port: %d\n", workerPort);
+
+    // read worker's stats
+    printf("===== Worker's statistics below ======\n");
+    while ((n = read(clientSocket, recvline, MAXLINE - 1)) > 0)
+    {
+        printf("%s", recvline);
+        if (recvline[n-1] == '\0') // protocol: sign that message is over
+            break;
+
+        memset(recvline, 0, MAXLINE);
+
+    }
+    // can't read negative bytes
+    if (n < 0)
+        perrorexit("read error");
+
+    // send message to client
+    snprintf((char *)buff, sizeof(buff), "Read stats from worker with port: %d\n\0", workerPort);
+    write(clientSocket, (char *)buff, strlen((char *)buff));
+    close(clientSocket);
 }

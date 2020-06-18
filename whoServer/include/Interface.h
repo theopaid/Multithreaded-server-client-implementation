@@ -179,3 +179,13 @@ void connectToServer(hashTable *diseaseHTable, hashTable *countryHTable, StatsCo
 void perrorexit(char *message);
 
 char *bin2hex(const unsigned char *input, size_t len);
+
+void addToBuffer(int *client_socket);
+
+int *removeFromBuffer();
+
+int getNodesCount();
+
+void *socketDistribution(void *arg);
+
+void handleConnection(int *ptrClient);
