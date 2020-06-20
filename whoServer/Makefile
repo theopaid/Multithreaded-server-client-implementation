@@ -1,4 +1,4 @@
-objects = src/main.o src/utils.o src/buffer.o
+objects = src/main.o src/utils.o src/buffer.o src/workersInfoList.o
 
 whoServer : $(objects)
 		cc -o whoServer $(objects) -lpthread
@@ -10,6 +10,7 @@ whoServer : $(objects)
 src/main.o : include/Interface.h
 src/utils.o : include/Interface.h
 src/buffer.o : include/Interface.h
+src/workersInfoList.o : include/Interface.h
 
 .PHONY: clean
 clean :

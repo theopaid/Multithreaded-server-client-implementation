@@ -285,24 +285,24 @@ void sendStatsToServer(StatsCountryNode *countriesListHead, int *sockfd)
             StatsDiseaseNode *currDiseaseNode = currDateNode->diseaseListPtr;
 
             sprintf(sendline, "%d-%d-%d\n", currDateNode->entryDate.day, currDateNode->entryDate.month, currDateNode->entryDate.year);
-            cleanBuffAndSend(sockfd, sendline);
+            sendAndCleanBuff(sockfd, sendline);
 
             sprintf(sendline, "%s\n", currCountryNode->name);
-            cleanBuffAndSend(sockfd, sendline);
+            sendAndCleanBuff(sockfd, sendline);
 
             while (currDiseaseNode != NULL)
             {
                 sprintf(sendline, "%s\n", currDiseaseNode->name);
-                cleanBuffAndSend(sockfd, sendline);
+                sendAndCleanBuff(sockfd, sendline);
 
                 sprintf(sendline, "Age range 0-20 years: %d cases\n", currDiseaseNode->range0to20);
-                cleanBuffAndSend(sockfd, sendline);
+                sendAndCleanBuff(sockfd, sendline);
                 sprintf(sendline, "Age range 21-40 years: %d cases\n", currDiseaseNode->range21to40);
-                cleanBuffAndSend(sockfd, sendline);
+                sendAndCleanBuff(sockfd, sendline);
                 sprintf(sendline, "Age range 41-60 years: %d cases\n", currDiseaseNode->range41to60);
-                cleanBuffAndSend(sockfd, sendline);
+                sendAndCleanBuff(sockfd, sendline);
                 sprintf(sendline, "Age range 60+ years: %d cases\n", currDiseaseNode->range61to120);
-                cleanBuffAndSend(sockfd, sendline);
+                sendAndCleanBuff(sockfd, sendline);
 
                 currDiseaseNode = currDiseaseNode->next;
             }
@@ -310,16 +310,14 @@ void sendStatsToServer(StatsCountryNode *countriesListHead, int *sockfd)
             currDateNode = currDateNode->next;
         }
         sprintf(sendline, "==================================\n");
-        cleanBuffAndSend(sockfd, sendline);
+        sendAndCleanBuff(sockfd, sendline);
 
         currCountryNode = currCountryNode->next;
     }
-    sprintf(sendline, "\0");
-    if (write(*sockfd, sendline, 1) != 1)
-        perrorexit("write error");
+    OverAndOut(sockfd); // protocol: send that message is over
 }
 
-void cleanBuffAndSend(int *sockfd, uint8_t *sendline) {
+void sendAndCleanBuff(int *sockfd, uint8_t *sendline) {
     int sendbytes = strlen(sendline);
     if (write(*sockfd, sendline, sendbytes) != sendbytes)
         perrorexit("write error");
@@ -335,7 +333,7 @@ void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries)
         perrorexit("listen error");
 
     while(1) { // wait until an incoming connection arrives
-        puts("I'm waiting foe incoming Queries...");
+        puts("I'm waiting for incoming Queries...");
         connfd = accept(*listenQueriesfd, (SA *)NULL, NULL);
         // zero out the receiving buffer 1st to make sure it ends up null terminated
         memset(recvline, 0, MAXLINE);
@@ -353,4 +351,12 @@ void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries)
         if (n < 0)
             perrorexit("read error");
     }
+}
+
+void OverAndOut(int *sockfd) {
+    uint8_t sendline[MAXLINE + 1];
+    memset(sendline, 0, MAXLINE);
+    sprintf(sendline, "\0");
+    if (write(*sockfd, sendline, 1) != 1)
+        perrorexit("write error");
 }

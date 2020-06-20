@@ -18,7 +18,7 @@
 struct node
 {
     struct node *next;
-    int *client_socket;
+    socketInfo *socket;
 };
 typedef struct node node_t;
 
@@ -26,11 +26,13 @@ node_t *head = NULL;
 node_t *tail = NULL;
 int nodesCounter = 0;
 
-void addToBuffer(int *client_socket)
+void addToBuffer(int *socketfd, int typeOfConnection)
 {
     nodesCounter++;
     node_t *newnode = malloc(sizeof(node_t));
-    newnode->client_socket = client_socket;
+    newnode->socket = (socketInfo *) malloc(sizeof(socketInfo));
+    newnode->socket->socketfd = socketfd;
+    newnode->socket->typeOfConnection = typeOfConnection;
     newnode->next = NULL;
     if (tail == NULL)
     {
@@ -44,7 +46,7 @@ void addToBuffer(int *client_socket)
 }
 
 // returns NULL is buffer is empty, or else the pointer to a client socket
-int *removeFromBuffer()
+socketInfo *removeFromBuffer()
 {
     if (head == NULL)
     {
@@ -53,7 +55,7 @@ int *removeFromBuffer()
     else
     {
         nodesCounter--;
-        int *result = head->client_socket;
+        socketInfo *result = head->socket;
         node_t *tmp = head;
         head = head->next;
         if (head == NULL)

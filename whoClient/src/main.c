@@ -80,8 +80,10 @@ void *queriesDistribution(void *arg)
 
     SA_IN *servaddr = (SA_IN *)arg;
     uint8_t sendline[MAXLINE + 1];
-    int sendbytes;
+    uint8_t recvline[MAXLINE + 1];
+    int sendbytes, n;
     memset(sendline, 0, MAXLINE);
+    memset(recvline, 0, MAXLINE);
 
     pthread_mutex_lock(&mutex);
 
@@ -104,12 +106,20 @@ void *queriesDistribution(void *arg)
         
         pthread_mutex_unlock(&mutex);
 
-        // if (connect(sockfd, (SA *)servaddr, sizeof(*servaddr)) < 0)
-        //     perrorexit("socket connection failed");
-        // sendAndCleanBuff(&sockfd, sendline);
-        printf("$%s\n", sendline);
+        if (connect(sockfd, (SA *)servaddr, sizeof(*servaddr)) < 0)
+            perrorexit("socket connection failed");
+        sendAndCleanBuff(&sockfd, sendline);
+        OverAndOut(&sockfd);
 
-        // if read by server, close socket. insert code here
+        // if command read by server, it's time to close socket.
+        while((n = read(sockfd, recvline, MAXLINE - 1)) > 0) {
+            if(recvline[n-1] == '\0')
+            { // protocol: sign that message is over
+                puts("Command read by Server");
+                close(sockfd);
+                break;
+            }
+        }
         if (current != NULL)
         {
             queriesDistribution(arg);
@@ -157,7 +167,17 @@ void addCmdsToList(char *queriesFile)
 void sendAndCleanBuff(int *sockfd, uint8_t *sendline)
 {
     int sendbytes = strlen(sendline);
+    printf("$%s\n", sendline);
     if (write(*sockfd, sendline, sendbytes) != sendbytes)
         perrorexit("write error");
     memset(sendline, 0, MAXLINE);
+}
+
+void OverAndOut(int *sockfd)
+{
+    uint8_t sendline[MAXLINE + 1];
+    memset(sendline, 0, MAXLINE);
+    sprintf(sendline, "\0");
+    if (write(*sockfd, sendline, 1) != 1)
+        perrorexit("write error");
 }

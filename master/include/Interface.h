@@ -196,6 +196,8 @@ void sendStatsAndPort(struct sockaddr_in *servaddr, int *sockfd, u_int32_t *conv
 
 void sendStatsToServer(StatsCountryNode *countriesListHead, int *sockfd);
 
-void cleanBuffAndSend(int *sockfd, uint8_t *sendline);
+void sendAndCleanBuff(int *sockfd, uint8_t *sendline);
 
 void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries);
+
+void OverAndOut(int *sockfd);

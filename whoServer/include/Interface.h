@@ -96,6 +96,17 @@ typedef struct StatsCountryNode
     struct StatsCountryNode *next;
 } StatsCountryNode;
 
+typedef struct socketInfo
+{
+    int *socketfd;
+    int typeOfConnection; // 0 if worker, 1 if query
+} socketInfo;
+
+typedef struct workersInfoNode {
+    int port;
+    struct workersInfoNode *next;
+} workersInfoNode;
+
 bool validArgs(int argc, char *argv[]);
 
 void getArgs(int *numThreads, int *bufferSize, int *queryPortNum, int *statisticsPortNum, char *argv[]);
@@ -180,12 +191,18 @@ void perrorexit(char *message);
 
 char *bin2hex(const unsigned char *input, size_t len);
 
-void addToBuffer(int *client_socket);
+void addToBuffer(int *client_socket, int typeOfConnection);
 
-int *removeFromBuffer();
+socketInfo *removeFromBuffer();
 
 int getNodesCount();
 
 void *socketDistribution(void *arg);
 
-void handleConnection(int *ptrClient);
+void handleConnectionForWorker(int *ptrClient);
+
+void handleConnectionForQuery(int *ptrClient);
+
+void OverAndOut(int *sockfd);
+
+void addWorkerToList(workersInfoNode **head, int port);
