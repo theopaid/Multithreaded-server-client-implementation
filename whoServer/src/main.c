@@ -83,36 +83,6 @@ int main(int argc, char *argv[])
         pthread_cond_signal(&conditionVar);
         pthread_mutex_unlock(&mutex);
 
-        // // zero out the receiving buffer 1st to make sure it ends up null terminated
-        // memset(recvline, 0, MAXLINE);
-        
-        // // read worker's port
-        // int tmp, workerPort;
-        // if((n = read(connfd, &tmp, sizeof(tmp))) > 0)
-        //     workerPort = ntohl(tmp);
-        // else
-        //     perrorexit("read error");
-        // printf("Worker's Port: %d\n", workerPort);
-
-        // // read worker's stats
-        // printf("===== Worker's statistics below ======\n");
-        // while ((n = read(connfd, recvline, MAXLINE - 1)) > 0)
-        // {
-        //     printf("%s", recvline);
-        //     if (recvline[n-1] == '\0') // protocol: sign that message is over
-        //         break;
-            
-        //     memset(recvline, 0, MAXLINE);
-            
-        // }
-        // // can't read negative bytes
-        // if (n < 0)
-        //     perrorexit("read error");
-
-        // // send message to client
-        // snprintf((char *)buff, sizeof(buff), "Read stats from worker with port: %d\n\0", workerPort);
-        // write(connfd, (char *)buff, strlen((char *)buff));
-        // close(connfd);
     }
 
     return 0;

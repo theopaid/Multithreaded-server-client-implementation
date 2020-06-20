@@ -1,0 +1,6 @@
+./whoClient -n kalispera -e ok
+./whoClient -n kalispera -e ok2
+./whoClient -n kalispera -e ok 3
+./whoClient -n kalispera -e ok 4
+./whoClient -n kalispera -e ok 5
+./whoClient -n kalispera -e ok 6

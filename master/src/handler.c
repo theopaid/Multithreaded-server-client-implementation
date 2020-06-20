@@ -223,16 +223,6 @@ void connectToServer(hashTable *diseaseHTable, hashTable *countryHTable, StatsCo
         perrorexit("inet_pton");
     sendStatsAndPort(&servaddr, &sockfd, &convertedPort, countriesListHead);
 
-    // if (connect(sockfd, (SA *)&servaddr, sizeof(servaddr)) < 0)
-    //     perrorexit("socket connection failed");
-
-    // sprintf(sendline, "kalispera apo ton client\n\0");
-    // sendbytes = strlen(sendline);
-    // puts("Sending msg to server");
-    // if (write(sockfd, sendline, sendbytes) != sendbytes)
-    //     perrorexit("write error");
-
-    // zero out the receiving buffer 1st to make sure it ends up null terminated
     memset(recvline, 0, MAXLINE);
     //read server's response
     printf("Server msg: ");
