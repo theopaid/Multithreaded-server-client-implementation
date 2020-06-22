@@ -198,6 +198,8 @@ void sendStatsToServer(StatsCountryNode *countriesListHead, int *sockfd);
 
 void sendAndCleanBuff(int *sockfd, uint8_t *sendline);
 
-void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries);
+void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries, int workersPort);
 
 void OverAndOut(int *sockfd);
+
+void answerQuery(int *connfd, int workersPort, char *recvline);

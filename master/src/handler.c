@@ -213,7 +213,7 @@ void connectToServer(hashTable *diseaseHTable, hashTable *countryHTable, StatsCo
     socklen_t len = sizeof(servaddrTmp);
     if (getsockname(listenQueriesfd, (SA *)&servaddrTmp, &len) == -1)
         perrorexit("getsockname");
-    printf("worker port: %d\n", ntohs(servaddrTmp.sin_port));
+    //printf("worker port: %d\n", ntohs(servaddrTmp.sin_port));
 
     int workersPort = ntohs(servaddrTmp.sin_port);
     u_int32_t convertedPort = htonl(workersPort);
@@ -225,7 +225,7 @@ void connectToServer(hashTable *diseaseHTable, hashTable *countryHTable, StatsCo
 
     memset(recvline, 0, MAXLINE);
     //read server's response
-    printf("Server msg: ");
+    printf("[LOG] Server message: ");
     while ((n = read(sockfd, recvline, MAXLINE - 1)) > 0)
     {
         printf("%s", recvline);
@@ -239,7 +239,7 @@ void connectToServer(hashTable *diseaseHTable, hashTable *countryHTable, StatsCo
     if (n < 0)
         perrorexit("read error");
 
-    listenForQueries(&listenQueriesfd, &servaddrQueries);
+    listenForQueries(&listenQueriesfd, &servaddrQueries, workersPort);
 
         exit(0);
 }
@@ -261,7 +261,7 @@ void sendStatsAndPort(struct sockaddr_in *servaddr, int *sockfd, u_int32_t *conv
     if(connect(*sockfd, (SA *)servaddr, sizeof(*servaddr)) < 0)
         perrorexit("socket connection failed");
 
-    puts("Sending msg to server");
+    printf("[Worker %d] Sending Port and Statistics to Server...\n", ntohl(*convertedPort));
     if (write(*sockfd, convertedPort, sizeof(*convertedPort)) != sizeof(*convertedPort))
         perrorexit("write error");
     
@@ -324,16 +324,16 @@ void sendAndCleanBuff(int *sockfd, uint8_t *sendline) {
     memset(sendline, 0, MAXLINE);
 }
 
-void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries) {
+void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries, int workersPort) {
 
     int connfd, n;
     uint8_t recvline[MAXLINE + 1];
 
-    if ((listen(*listenQueriesfd, 10)) < 0)
+    if ((listen(*listenQueriesfd, 50)) < 0)
         perrorexit("listen error");
 
     while(1) { // wait until an incoming connection arrives
-        puts("I'm waiting for incoming Queries...");
+        printf("I'm waiting for incoming Queries...\n");
         connfd = accept(*listenQueriesfd, (SA *)NULL, NULL);
         // zero out the receiving buffer 1st to make sure it ends up null terminated
         memset(recvline, 0, MAXLINE);
@@ -341,8 +341,11 @@ void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries)
         //read server's query
         while ((n = read(connfd, recvline, MAXLINE - 1)) > 0)
         {
-            printf("%s", recvline);
-            if (recvline[n] == '\0') // protocol: sign that message is over
+            if(recvline[0] == '.') { // in order to exclude the '\0' char that we are going to read due to our the protocol
+                OverAndOut(&connfd);
+                answerQuery(&connfd, workersPort, recvline);
+            }
+            if (recvline[n-1] == '\0') // protocol: sign that message is over
                 break;
 
             memset(recvline, 0, MAXLINE);
@@ -359,4 +362,18 @@ void OverAndOut(int *sockfd) {
     sprintf(sendline, "\0");
     if (write(*sockfd, sendline, 1) != 1)
         perrorexit("write error");
+}
+
+void answerQuery(int *connfd, int workersPort, char *recvline)
+{
+    printf("[LOG][Worker %d] Received query: %s\n", workersPort, recvline);
+
+    uint8_t sendline[MAXLINE + 1];
+    memset(sendline, 0, MAXLINE);
+    sprintf(sendline, "[Placeholder for answer from Worker with port: %d, for Query: %s]", workersPort, recvline);
+    sendAndCleanBuff(connfd, sendline);
+    OverAndOut(connfd);
+    printf("[LOG][Worker %d] Sent the answer to the Server\n", workersPort);
+
+    return;
 }

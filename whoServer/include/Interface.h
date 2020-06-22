@@ -107,6 +107,7 @@ typedef struct workersInfoNode {
     struct workersInfoNode *next;
 } workersInfoNode;
 
+
 bool validArgs(int argc, char *argv[]);
 
 void getArgs(int *numThreads, int *bufferSize, int *queryPortNum, int *statisticsPortNum, char *argv[]);
@@ -206,3 +207,5 @@ void handleConnectionForQuery(int *ptrClient);
 void OverAndOut(int *sockfd);
 
 void addWorkerToList(workersInfoNode **head, int port);
+
+void sendQueryToWorkers(uint8_t *sendline);

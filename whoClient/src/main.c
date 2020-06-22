@@ -115,7 +115,7 @@ void *queriesDistribution(void *arg)
         while((n = read(sockfd, recvline, MAXLINE - 1)) > 0) {
             if(recvline[n-1] == '\0')
             { // protocol: sign that message is over
-                puts("Command read by Server");
+                //puts("Command read by Server");
                 close(sockfd);
                 break;
             }
@@ -143,9 +143,14 @@ void addCmdsToList(char *queriesFile)
     size_t len = 0;
     ssize_t read;
     while ((read = getline(&line, &len, fp)) != -1)
-    {
+    { // remove endline char from string if one is read
+        printf("len: %d\n", strlen(line));
+        if(line[strlen(line) - 1] == '\n') {
+            puts("edw");
+            line[strlen(line) - 1] = '\0';
+        }
         cmdNode *newNode = (cmdNode *)malloc(sizeof(cmdNode));
-        newNode->cmd = (char *)malloc(sizeof(char) * (len + 1));
+        newNode->cmd = (char *)malloc(sizeof(char) * (strlen(line) + 1));
         strcpy(newNode->cmd, line);
         newNode->next = NULL;
 
