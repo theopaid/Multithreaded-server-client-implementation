@@ -26,7 +26,7 @@ SA_IN workersAddr;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexForStdout = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexForSendingQuery = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexForPrintingAnswer = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t conditionVar = PTHREAD_COND_INITIALIZER;
 
 int main(int argc, char *argv[])
@@ -226,10 +226,11 @@ void handleConnectionForQuery(int *ptrClient)
     {
         if (recvline[0] == '.')
         { // if a command is read
-            sendQueryToWorkers(recvline);
+            sendQueryToWorkers(recvline, &clientSocket);
         }
         if (recvline[n - 1] == '\0')
         { // protocol: sign that message is over
+            //close(clientSocket);
             break;
         }
 
@@ -250,7 +251,7 @@ void OverAndOut(int *sockfd)
         perrorexit("write error");
 }
 
-void sendQueryToWorkers(uint8_t *sendline)
+void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
 {
     uint8_t recvline[MAXLINE + 1];
     memset(recvline, 0, MAXLINE);
@@ -260,11 +261,11 @@ void sendQueryToWorkers(uint8_t *sendline)
     // fd_set currentWorkerSockets, readyWorkerSockets;
     // FD_ZERO(&currentWorkerSockets);
 
-    printf("Sending to workers: %s\n", sendline);
+    printf("[LOG] Sending to workers: %s\n", sendline);
     workersInfoNode *current = headOfWorkers;
     while (current != NULL)
     {
-        workersCount++;
+        //workersCount++;
         if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             perrorexit("socket creation");
         //const int optionval = 1;
@@ -286,12 +287,15 @@ void sendQueryToWorkers(uint8_t *sendline)
             perrorexit("write error");
         OverAndOut(&sockfd);
 
-        while ((n = read(sockfd, recvline, MAXLINE - 1)) > 0)
+        memset(recvline, 0, MAXLINE);
+        pthread_mutex_lock(&mutexForPrintingAnswer); // so answer stdout does not mix with other threads
+        puts("=============================================");
+        while ((n = read(sockfd, recvline, 1)) > 0)
         {
+            printf("ok: %s\n", recvline);
             if (recvline[n - 1] == '\0')
             { // protocol: sign that message is over
-                printf("[LOG] Command: %s , read by worker(%d)\n", sendline, current->port);
-                //close(sockfd);
+                printf("[LOG] Command: $%s , read by worker(%d)\n", sendline, current->port);
                 break;
             }
         }
@@ -303,7 +307,8 @@ void sendQueryToWorkers(uint8_t *sendline)
         {
             if (recvline[0] != '\0')
             { // if it's a regular message
-                printf("%s", recvline);
+                printf("%s\n", recvline);
+                //sendAnswerToClient(recvline, clientFd);
             }
             if (recvline[n - 1] == '\0')
             { // protocol: sign that message is over
@@ -315,8 +320,9 @@ void sendQueryToWorkers(uint8_t *sendline)
         }
         if (n < 0)
             perrorexit("read error");
-        puts(""); // newline
-
+        //puts("=============================================");
+        pthread_mutex_unlock(&mutexForPrintingAnswer);
+        
         current = current->next;
     }
 
@@ -341,9 +347,8 @@ void sendQueryToWorkers(uint8_t *sendline)
     //             printf("Worker's Answer: ");
     //             while ((n = read(i, recvline, MAXLINE - 1)) > 0)
     //             {
-    //                 printf("ok:%s", recvline);
     //                 if(recvline[0] != '\0') { // if it's a regular message
-    //                     printf("%s", recvline);
+    //                     printf("%s/n", recvline);
     //                 }
     //                 if (recvline[n - 1] == '\0')
     //                 { // protocol: sign that message is over
@@ -358,4 +363,17 @@ void sendQueryToWorkers(uint8_t *sendline)
     //         }
     //     }
     // }
+}
+
+// void sendAnswerToClient(char *sendline, int *clientFd) {
+//     sendAndCleanBuff(clientFd, sendline);
+//     OverAndOut(clientFd);
+// }
+
+void sendAndCleanBuff(int *sockfd, uint8_t *sendline)
+{
+    int sendbytes = strlen(sendline);
+    if (write(*sockfd, sendline, sendbytes) != sendbytes)
+        perrorexit("write error");
+    memset(sendline, 0, MAXLINE);
 }

@@ -334,7 +334,8 @@ void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries,
 
     while(1) { // wait until an incoming connection arrives
         printf("I'm waiting for incoming Queries...\n");
-        connfd = accept(*listenQueriesfd, (SA *)NULL, NULL);
+        if((connfd = accept(*listenQueriesfd, (SA *)NULL, NULL)) < 0)
+            perrorexit("accept failed");
         // zero out the receiving buffer 1st to make sure it ends up null terminated
         memset(recvline, 0, MAXLINE);
 
@@ -353,6 +354,8 @@ void listenForQueries(int *listenQueriesfd, struct sockaddr_in *servaddrQueries,
         // can't read negative bytes
         if (n < 0)
             perrorexit("read error");
+
+        close(connfd);
     }
 }
 
@@ -371,6 +374,9 @@ void answerQuery(int *connfd, int workersPort, char *recvline)
     uint8_t sendline[MAXLINE + 1];
     memset(sendline, 0, MAXLINE);
     sprintf(sendline, "[Placeholder for answer from Worker with port: %d, for Query: %s]", workersPort, recvline);
+    /**
+     * Here we would calculate the answer using the data stored in out data structures. Similar to 1st and 2nd project.
+     * */
     sendAndCleanBuff(connfd, sendline);
     OverAndOut(connfd);
     printf("[LOG][Worker %d] Sent the answer to the Server\n", workersPort);

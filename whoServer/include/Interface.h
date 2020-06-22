@@ -208,4 +208,8 @@ void OverAndOut(int *sockfd);
 
 void addWorkerToList(workersInfoNode **head, int port);
 
-void sendQueryToWorkers(uint8_t *sendline);
+void sendQueryToWorkers(uint8_t *sendline, int * clientFd);
+
+void sendAndCleanBuff(int *sockfd, uint8_t *sendline);
+
+void sendAnswerToClient(char *sendline, int *clientFd);

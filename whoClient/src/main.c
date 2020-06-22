@@ -21,6 +21,7 @@ typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexToPrintAnswers = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t conditionVar = PTHREAD_COND_INITIALIZER;
 
 // global structure
@@ -103,7 +104,7 @@ void *queriesDistribution(void *arg)
             puts("Sending a batch of commands to the Server...\n");
             pthread_cond_broadcast(&conditionVar);
         }
-        
+
         pthread_mutex_unlock(&mutex);
 
         if (connect(sockfd, (SA *)servaddr, sizeof(*servaddr)) < 0)
@@ -112,14 +113,25 @@ void *queriesDistribution(void *arg)
         OverAndOut(&sockfd);
 
         // if command read by server, it's time to close socket.
-        while((n = read(sockfd, recvline, MAXLINE - 1)) > 0) {
-            if(recvline[n-1] == '\0')
+        //pthread_mutex_lock(&mutexToPrintAnswers);
+        //printf("Server's Answer: ");
+        while ((n = read(sockfd, recvline, 1)) > 0)
+        {
+            // if (recvline[0] != '\0')
+            // { // if it's a regular message
+            //     printf("%s\n", recvline);
+            // }
+
+            if (recvline[n - 1] == '\0')
             { // protocol: sign that message is over
                 //puts("Command read by Server");
                 close(sockfd);
                 break;
             }
+
+            memset(recvline, 0, MAXLINE);
         }
+        //pthread_mutex_unlock(&mutexToPrintAnswers);
         if (current != NULL)
         {
             queriesDistribution(arg);
@@ -144,9 +156,8 @@ void addCmdsToList(char *queriesFile)
     ssize_t read;
     while ((read = getline(&line, &len, fp)) != -1)
     { // remove endline char from string if one is read
-        printf("len: %d\n", strlen(line));
-        if(line[strlen(line) - 1] == '\n') {
-            puts("edw");
+        if (line[strlen(line) - 1] == '\n')
+        {
             line[strlen(line) - 1] = '\0';
         }
         cmdNode *newNode = (cmdNode *)malloc(sizeof(cmdNode));
