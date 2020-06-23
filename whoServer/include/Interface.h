@@ -213,3 +213,5 @@ void sendQueryToWorkers(uint8_t *sendline, int * clientFd);
 void sendAndCleanBuff(int *sockfd, uint8_t *sendline);
 
 void sendAnswerToClient(char *sendline, int *clientFd);
+
+void sigint_handler(int sig);

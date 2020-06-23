@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/select.h>
+#include <signal.h>
 
 #include "../include/Interface.h"
 
@@ -23,17 +24,38 @@ typedef struct sockaddr SA;
 
 workersInfoNode *headOfWorkers = NULL;
 SA_IN workersAddr;
-int workers = 0;
+int workers = 0, numThreads;
+pthread_t *thread_pool_ptr;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexForStdout = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexForPrintingAnswer = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t conditionVar = PTHREAD_COND_INITIALIZER;
 
+void sigint_handler(int sig)
+{
+    write(0, "\nClosing threads and exiting...\n", 32);
+    for (int i = 0; i < numThreads; i++)
+    {
+        pthread_cancel(thread_pool_ptr[i]);
+    }
+}
+
 int main(int argc, char *argv[])
 {
+    // handle SIGINT, so we can exit eith the best conditions possible
+    void sigint_handler(int sig);
+    struct sigaction sa;
 
-    // dirListNode *headDirList = dirListingToList("input_dir");
+    sa.sa_handler = sigint_handler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        exit(1);
+    }
 
     if (!validArgs(argc, argv))
     {
@@ -41,7 +63,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    int numThreads, bufferSize, queryPortNum, statisticsPortNum;
+    int bufferSize, queryPortNum, statisticsPortNum;
     getArgs(&numThreads, &bufferSize, &queryPortNum, &statisticsPortNum, argv);
     printf("%d %d %d %d\n", numThreads, bufferSize, queryPortNum, statisticsPortNum);
     int listenfd, listenfdQueries, connfd;
@@ -55,6 +77,7 @@ int main(int argc, char *argv[])
     {
         pthread_create(&thread_pool[i], NULL, socketDistribution, NULL);
     }
+    thread_pool_ptr = thread_pool;
 
     // allocate new socket
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -368,8 +391,11 @@ void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
 }
 
 void sendAnswerToClient(char *sendline, int *clientFd) {
+    char *delimiter = "$";
     int sendbytes = strlen(sendline);
     if (write(*clientFd, sendline, sendbytes) != sendbytes)
+        perrorexit("write error");
+    if(write(*clientFd, delimiter, 1) != 1)
         perrorexit("write error");
 }
 

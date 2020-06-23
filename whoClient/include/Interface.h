@@ -193,3 +193,5 @@ void addCmdsToList(char *queriesFile);
 void sendAndCleanBuff(int *sockfd, uint8_t *sendline);
 
 void OverAndOut(int *sockfd);
+
+void freeQueriesList();

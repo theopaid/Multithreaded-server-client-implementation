@@ -70,6 +70,7 @@ int main(int argc, char *argv[])
     {
         pthread_join(thread_pool[i], NULL);
     }
+    freeQueriesList();
     return 0;
 }
 
@@ -113,12 +114,17 @@ void *queriesDistribution(void *arg)
         OverAndOut(&sockfd);
         
         // let's get the answers
+        pthread_mutex_lock(&mutexToPrintAnswers);
         while ((n = read(sockfd, recvline, MAXLINE - 1)) > 0)
         {
             if (recvline[0] != '\0')
             { // if it's a regular message
-                printf("Server's Answer: ");
-                printf("%s\n", recvline);
+                char *temprecvline = calloc(strlen(recvline) + 1, sizeof(char));
+                strcpy(temprecvline, recvline);
+                for (char *p = strtok(temprecvline, "$"); p != NULL; p = strtok(NULL, "$")) {
+                    printf("Server's Answer: %s\n", p);
+                }
+                free(temprecvline);
             }
 
             if (recvline[n - 1] == '\0')
@@ -129,6 +135,7 @@ void *queriesDistribution(void *arg)
 
             memset(recvline, 0, MAXLINE);
         }
+        pthread_mutex_unlock(&mutexToPrintAnswers);
         close(sockfd);
         if (current != NULL)
         {
@@ -194,4 +201,13 @@ void OverAndOut(int *sockfd)
     sprintf(sendline, "\0");
     if (write(*sockfd, sendline, 1) != 1)
         perrorexit("write error");
+}
+
+void freeQueriesList() {
+    cmdNode *tmp;
+    while(head != NULL) {
+        tmp = head;
+        head = head->next;
+        free(tmp);
+    }
 }
