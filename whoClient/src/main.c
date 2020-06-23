@@ -111,27 +111,25 @@ void *queriesDistribution(void *arg)
             perrorexit("socket connection failed");
         sendAndCleanBuff(&sockfd, sendline);
         OverAndOut(&sockfd);
-
-        // if command read by server, it's time to close socket.
-        //pthread_mutex_lock(&mutexToPrintAnswers);
-        //printf("Server's Answer: ");
-        while ((n = read(sockfd, recvline, 1)) > 0)
+        
+        // let's get the answers
+        while ((n = read(sockfd, recvline, MAXLINE - 1)) > 0)
         {
-            // if (recvline[0] != '\0')
-            // { // if it's a regular message
-            //     printf("%s\n", recvline);
-            // }
+            if (recvline[0] != '\0')
+            { // if it's a regular message
+                printf("Server's Answer: ");
+                printf("%s\n", recvline);
+            }
 
             if (recvline[n - 1] == '\0')
             { // protocol: sign that message is over
                 //puts("Command read by Server");
-                close(sockfd);
                 break;
             }
 
             memset(recvline, 0, MAXLINE);
         }
-        //pthread_mutex_unlock(&mutexToPrintAnswers);
+        close(sockfd);
         if (current != NULL)
         {
             queriesDistribution(arg);

@@ -23,6 +23,7 @@ typedef struct sockaddr SA;
 
 workersInfoNode *headOfWorkers = NULL;
 SA_IN workersAddr;
+int workers = 0;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexForStdout = PTHREAD_MUTEX_INITIALIZER;
@@ -186,6 +187,7 @@ void handleConnectionForWorker(int *ptrClient)
     pthread_mutex_lock(&mutexForStdout);
     printf("[LOG] Connected Worker's Port: %d\n", workerPort);
     addWorkerToList(&headOfWorkers, workerPort);
+    workers++;
 
     // read worker's stats
     printf("===== Worker's statistics below ======\n");
@@ -230,7 +232,7 @@ void handleConnectionForQuery(int *ptrClient)
         }
         if (recvline[n - 1] == '\0')
         { // protocol: sign that message is over
-            //close(clientSocket);
+            close(clientSocket);
             break;
         }
 
@@ -239,7 +241,6 @@ void handleConnectionForQuery(int *ptrClient)
     // can't read negative bytes
     if (n < 0)
         perrorexit("read error");
-    OverAndOut(&clientSocket);
 }
 
 void OverAndOut(int *sockfd)
@@ -263,6 +264,7 @@ void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
 
     printf("[LOG] Sending to workers: %s\n", sendline);
     workersInfoNode *current = headOfWorkers;
+
     while (current != NULL)
     {
         //workersCount++;
@@ -280,7 +282,6 @@ void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
 
         if (connect(sockfd, (SA *)&workeraddr, sizeof(workeraddr)) < 0)
             perrorexit("socket connection failed");
-        // printf("sockfd: %d\n", sockfd);
         //FD_SET(sockfd, &currentWorkerSockets);
 
         if (write(sockfd, sendline, strlen(sendline)) != strlen(sendline))
@@ -292,7 +293,6 @@ void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
         puts("=============================================");
         while ((n = read(sockfd, recvline, 1)) > 0)
         {
-            printf("ok: %s\n", recvline);
             if (recvline[n - 1] == '\0')
             { // protocol: sign that message is over
                 printf("[LOG] Command: $%s , read by worker(%d)\n", sendline, current->port);
@@ -308,7 +308,7 @@ void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
             if (recvline[0] != '\0')
             { // if it's a regular message
                 printf("%s\n", recvline);
-                //sendAnswerToClient(recvline, clientFd);
+                sendAnswerToClient(recvline, clientFd);
             }
             if (recvline[n - 1] == '\0')
             { // protocol: sign that message is over
@@ -321,8 +321,10 @@ void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
         if (n < 0)
             perrorexit("read error");
         //puts("=============================================");
+        if(current->next == NULL) // signal whoClient thread that we are done sending
+            OverAndOut(clientFd);
         pthread_mutex_unlock(&mutexForPrintingAnswer);
-        
+
         current = current->next;
     }
 
@@ -365,10 +367,11 @@ void sendQueryToWorkers(uint8_t *sendline, int *clientFd)
     // }
 }
 
-// void sendAnswerToClient(char *sendline, int *clientFd) {
-//     sendAndCleanBuff(clientFd, sendline);
-//     OverAndOut(clientFd);
-// }
+void sendAnswerToClient(char *sendline, int *clientFd) {
+    int sendbytes = strlen(sendline);
+    if (write(*clientFd, sendline, sendbytes) != sendbytes)
+        perrorexit("write error");
+}
 
 void sendAndCleanBuff(int *sockfd, uint8_t *sendline)
 {
