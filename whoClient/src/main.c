@@ -25,14 +25,9 @@ pthread_mutex_t mutexToPrintAnswers = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t conditionVar = PTHREAD_COND_INITIALIZER;
 
 // global structure
-typedef struct cmdNode
-{
-    char *cmd;
-    struct cmdNode *next;
-} cmdNode;
-
 cmdNode *head = NULL;
 cmdNode *current = NULL;
+
 int threadsOccupied = 0;
 int numThreads = 0;
 

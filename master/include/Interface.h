@@ -116,8 +116,6 @@ void getArgs(int *numWorkers, int *bufferSize, char **input_dir, char **serverIP
 
 void distributeToWorkers(workersInfo *myWorkersInfo, int numOfWorkers, int bufferSize, char *input_dir, char *serverIP, int serverPort);
 
-void renderMenu(workersInfo *myWorkersInfo, int numOfWorkers);
-
 dirListNode *dirListingToList(char *inputDir);
 
 int listNodeCounter(dirListNode *head);

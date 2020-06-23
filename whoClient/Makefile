@@ -3,7 +3,7 @@ objects = src/main.o src/utils.o
 whoClient : $(objects)
 		cc -o whoClient $(objects) -lpthread
 		@echo "========================================================================"
-		@echo "|Try running: ./whoClient -q queries.txt -w 10 -sp 156 -sip 127.0.0.1         |"
+		@echo "|Try running: ./whoClient -q queries.txt -w 10 -sp 1156 -sip 127.0.0.1  |"
 		@echo "|														              |"
 		@echo "========================================================================"
 

@@ -3,7 +3,7 @@ objects = src/main.o src/utils.o src/buffer.o src/workersInfoList.o
 whoServer : $(objects)
 		cc -o whoServer $(objects) -lpthread
 		@echo "========================================================================"
-		@echo "|Try running: ./whoServer -q 156 -s 166 -w 7 -b 10          |"
+		@echo "|Try running: ./whoServer -q 1156 -s 1166 -w 7 -b 10                   |"
 		@echo "|														              |"
 		@echo "========================================================================"
 
